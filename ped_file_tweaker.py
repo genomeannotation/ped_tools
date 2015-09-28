@@ -40,7 +40,7 @@ class PedRow:
             else:
                 return "dad"
 
-    def family_number(self):
+    def family_id(self):
         """Return family id of PedRow"""
         return self.info[1].split("_")[2]
 
@@ -52,7 +52,9 @@ class Family:
         self.children = []
 
 # Read ped file
-all_rows = []
+families = []
+current_family = None
+current_family_id = None
 number_of_genotypes = 0
 sys.stderr.write("Reading %s...\n" % sys.argv[1])
 with open(sys.argv[1], 'r') as pedfile:
@@ -77,18 +79,40 @@ with open(sys.argv[1], 'r') as pedfile:
                 first_allele = ""
                 second_allele = ""
         ped_row = PedRow(new_cols)
-        all_rows.append(ped_row)
+        row_family_id = ped_row.family_id()
+        if row_family_id != current_family_id:
+            # Save current family if we have one
+            if current_family:
+                families.append(current_family)
+            # Create new family
+            current_family = Family()
+            current_family_id = row_family_id
+        # Add this row to current family
+        if ped_row.row_type() == "mom":
+            current_family.mom = ped_row
+        elif ped_row.row_type() == "dad":
+            current_family.dad = ped_row
+        else:
+            current_family.children.append(ped_row)
         # Find out how many genotype columns we have
+        # (Only executes once)
         if number_of_genotypes == 0:
             number_of_genotypes = len(new_cols[6:])
+    # Add last family!
+    families.append(current_family)
+
 
 # Inspect each column and modify alleles
+# Also validate alleles within each family
 sys.stderr.write("Converting genotypes...\n")
 for i in range(number_of_genotypes):
     # Get all entries from this column
     all_genotypes = []
-    for ped_row in all_rows:
-        all_genotypes.append(ped_row.genotypes[i])
+    for family in families:
+        all_genotypes.append(family.mom.genotypes[i])
+        all_genotypes.append(family.dad.genotypes[i])
+        for child in family.children:
+            all_genotypes.append(child.genotypes[i])
     # Figure out what bases are present
     bases_present = set()
     for genotype in all_genotypes:
@@ -112,5 +136,8 @@ for i in range(number_of_genotypes):
 
 # Print stuff
 sys.stderr.write("Writing results...\n")
-for row in all_rows:
-    print(row.to_tsv())
+for family in families:
+    print(family.mom.to_tsv())
+    print(family.dad.to_tsv())
+    for child in family.children:
+        print(child.to_tsv())
