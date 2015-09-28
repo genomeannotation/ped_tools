@@ -5,9 +5,20 @@
 # Leaves columns 1-6 unchanged
 # For columns 7... alternates " " and "\t" as delimiter
 # Then turns alleles into '1' or '2'
-# TODO check validity of alleles based on parent genotypes
+# Checks validity of alleles based on parent genotypes
 
 import sys
+
+class Genotype:
+    """Stores two alleles"""
+    def __init__(self, alleles):
+        self.alleles = alleles
+
+    def __str__(self):
+        return " ".join(self.alleles)
+
+    def contains(self, base):
+        return base in self.alleles
 
 class PedRow:
     """Stores one row of ped file data"""
@@ -16,9 +27,34 @@ class PedRow:
         self.genotypes = fields[6:]
 
     def to_tsv(self):
-        return "\t".join(self.info + self.genotypes)
+        genotypes = [str(g) for g in self.genotypes]
+        return "\t".join(self.info + genotypes)
+
+    def row_type(self):
+        """Return 'mom', 'dad', or 'child' for a given PedRow"""
+        if self.info[2] != "0":
+            return "child"
+        else:
+            if self.info[1][1] == "F":
+                return "mom"
+            else:
+                return "dad"
+
+    def family_number(self):
+        """Return family id of PedRow"""
+        return self.info[1].split("_")[2]
+
+class Family:
+    """Stores a mom PedRow, a dad PedRow, and child PedRows"""
+    def __init__(self):
+        self.mom = None
+        self.dad = None
+        self.children = []
 
 # Read ped file
+all_rows = []
+number_of_genotypes = 0
+sys.stderr.write("Reading %s...\n" % sys.argv[1])
 with open(sys.argv[1], 'r') as pedfile:
     for line in pedfile:
         if line.startswith("#"):
@@ -29,13 +65,52 @@ with open(sys.argv[1], 'r') as pedfile:
         new_cols = fields[:6] # keep first 6 columns
         # Make new columns with two entries each,
         # separated by a space
-        next_entry = ""
+        first_allele = ""
+        second_allele = ""
         for n in range(6, num_cols):
             if n % 2 == 0:
-                next_entry = fields[n]
+                first_allele = fields[n]
             else:
-                next_entry += " " + fields[n]
-                new_cols.append(next_entry)
-                next_entry = ""
+                second_allele = fields[n]
+                genotype = Genotype([first_allele, second_allele])
+                new_cols.append(genotype)
+                first_allele = ""
+                second_allele = ""
         ped_row = PedRow(new_cols)
-        print(ped_row.to_tsv())
+        all_rows.append(ped_row)
+        # Find out how many genotype columns we have
+        if number_of_genotypes == 0:
+            number_of_genotypes = len(new_cols[6:])
+
+# Inspect each column and modify alleles
+sys.stderr.write("Converting genotypes...\n")
+for i in range(number_of_genotypes):
+    # Get all entries from this column
+    all_genotypes = []
+    for ped_row in all_rows:
+        all_genotypes.append(ped_row.genotypes[i])
+    # Figure out what bases are present
+    bases_present = set()
+    for genotype in all_genotypes:
+        for base in "ACGT":
+            if genotype.contains(base):
+                bases_present.add(base)
+    if len(bases_present) != 2:
+        sys.stderr.write("Error, more than 2 different bases in column %d\n" % i)
+        sys.exit()
+    # Figure out how to map bases to numbers
+    base_to_number = {
+            "0": "0",
+            sorted(bases_present)[0]: "1",
+            sorted(bases_present)[1]: "2"
+            }
+    for genotype in all_genotypes:
+        first = genotype.alleles[0]
+        second = genotype.alleles[1]
+        genotype.alleles[0] = base_to_number[first]
+        genotype.alleles[1] = base_to_number[second]
+
+# Print stuff
+sys.stderr.write("Writing results...\n")
+for row in all_rows:
+    print(row.to_tsv())
