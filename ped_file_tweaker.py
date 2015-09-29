@@ -8,48 +8,7 @@
 # Checks validity of alleles based on parent genotypes
 
 import sys
-
-class Genotype:
-    """Stores two alleles"""
-    def __init__(self, alleles):
-        self.alleles = alleles
-
-    def __str__(self):
-        return " ".join(self.alleles)
-
-    def contains(self, base):
-        return base in self.alleles
-
-class PedRow:
-    """Stores one row of ped file data"""
-    def __init__(self, fields):
-        self.info = fields[:6]
-        self.genotypes = fields[6:]
-
-    def to_tsv(self):
-        genotypes = [str(g) for g in self.genotypes]
-        return "\t".join(self.info + genotypes)
-
-    def row_type(self):
-        """Return 'mom', 'dad', or 'child' for a given PedRow"""
-        if self.info[2] != "0":
-            return "child"
-        else:
-            if self.info[1][1] == "F":
-                return "mom"
-            else:
-                return "dad"
-
-    def family_id(self):
-        """Return family id of PedRow"""
-        return self.info[1].split("_")[2]
-
-class Family:
-    """Stores a mom PedRow, a dad PedRow, and child PedRows"""
-    def __init__(self):
-        self.mom = None
-        self.dad = None
-        self.children = []
+from src.ped_classes import Genotype, PedRow, Family
 
 # Read ped file
 families = []
@@ -109,6 +68,14 @@ for i in range(number_of_genotypes):
     # Get all entries from this column
     all_genotypes = []
     for family in families:
+        sys.stderr.write("Validating alleles for family %s, column %d\n" % 
+                (family.mom.family_id(), i))
+        if not family.validate_genotypes(i):
+            sys.stderr.write("Error! Invalid alleles!\n")
+            sys.stderr.write("Mom: %s\n" % family.mom.to_tsv())
+            sys.stderr.write("Dad: %s\n" % family.dad.to_tsv())
+            sys.stderr.write("Genotype column (starting from 0): %d\n" % i)
+            sys.exit()
         all_genotypes.append(family.mom.genotypes[i])
         all_genotypes.append(family.dad.genotypes[i])
         for child in family.children:
