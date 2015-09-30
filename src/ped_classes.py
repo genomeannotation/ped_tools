@@ -1,14 +1,3 @@
-class Genotype:
-    """Stores two alleles"""
-    def __init__(self, alleles):
-        self.alleles = alleles
-
-    def __str__(self):
-        return " ".join(self.alleles)
-
-    def contains(self, base):
-        return base in self.alleles
-
 class PedRow:
     """Stores one row of ped file data"""
     def __init__(self, fields):
@@ -35,18 +24,23 @@ class PedRow:
 
 def get_legal_genotypes(mom, dad):
     legal_genotypes = set()
-    mom1 = mom.alleles[0]
-    mom2 = mom.alleles[1]
-    dad1 = dad.alleles[0]
-    dad2 = dad.alleles[1]
-    legal_genotypes.add(Genotype( ["0", "0"] ))
-    legal_genotypes.add(Genotype( [mom1, dad1] ))
-    legal_genotypes.add(Genotype( [mom1, dad2] ))
-    legal_genotypes.add(Genotype( [mom2, dad1] ))
-    legal_genotypes.add(Genotype( [mom2, dad2] ))
+    legal_genotypes.add("0 0")
+    mom1 = mom[0]
+    mom2 = mom[2]
+    dad1 = dad[0]
+    dad2 = dad[2]
+    legal_genotypes.add(mom1 + " " + dad1)
+    legal_genotypes.add(mom1 + " " + dad2)
+    legal_genotypes.add(mom2 + " " + dad1)
+    legal_genotypes.add(mom2 + " " + dad2)
     return legal_genotypes
 
 def valid_genotype(mom_genotype, dad_genotype, child_genotype):
+    # TODO not sure if this is fully accurate...
+    # @ssim says if one parent missing, no correction
+    # but if mom is missing and dad is "G G", then "A A" is impossible, no?
+    if mom_genotype == "0 0" or dad_genotype == "0 0" or child_genotype == "0 0":
+        return True
     legal_genotypes = get_legal_genotypes(mom_genotype, dad_genotype)
     for genotype in legal_genotypes:
         if str(genotype) == str(child_genotype):
@@ -61,11 +55,13 @@ class Family:
         self.children = []
 
     def validate_genotypes(self, column):
+        genotypes_corrected = 0
         mom_genotype = self.mom.genotypes[column]
         dad_genotype = self.dad.genotypes[column]
         child_genotypes = [c.genotypes[column] for c in self.children]
         for child_genotype in child_genotypes:
             if not valid_genotype(mom_genotype, dad_genotype, child_genotype):
-                return False
-        return True
+                genotypes_corrected += 1
+                child_genotype = "0 0"
+        return genotypes_corrected
 

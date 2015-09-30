@@ -8,7 +8,7 @@
 # Checks validity of alleles based on parent genotypes
 
 import sys
-from src.ped_classes import Genotype, PedRow, Family
+from src.ped_classes import PedRow, Family
 
 # Read ped file
 families = []
@@ -33,7 +33,7 @@ with open(sys.argv[1], 'r') as pedfile:
                 first_allele = fields[n]
             else:
                 second_allele = fields[n]
-                genotype = Genotype([first_allele, second_allele])
+                genotype = first_allele + " " + second_allele
                 new_cols.append(genotype)
                 first_allele = ""
                 second_allele = ""
@@ -64,18 +64,14 @@ with open(sys.argv[1], 'r') as pedfile:
 # Inspect each column and modify alleles
 # Also validate alleles within each family
 sys.stderr.write("Converting genotypes...\n")
+genotypes_corrected = 0
 for i in range(number_of_genotypes):
     # Get all entries from this column
     all_genotypes = []
     for family in families:
         sys.stderr.write("Validating alleles for family %s, column %d\n" % 
                 (family.mom.family_id(), i))
-        if not family.validate_genotypes(i):
-            sys.stderr.write("Error! Invalid alleles!\n")
-            sys.stderr.write("Mom: %s\n" % family.mom.to_tsv())
-            sys.stderr.write("Dad: %s\n" % family.dad.to_tsv())
-            sys.stderr.write("Genotype column (starting from 0): %d\n" % i)
-            sys.exit()
+        genotypes_corrected += family.validate_genotypes(i)
         all_genotypes.append(family.mom.genotypes[i])
         all_genotypes.append(family.dad.genotypes[i])
         for child in family.children:
@@ -84,7 +80,7 @@ for i in range(number_of_genotypes):
     bases_present = set()
     for genotype in all_genotypes:
         for base in "ACGT":
-            if genotype.contains(base):
+            if base in genotype:
                 bases_present.add(base)
     if len(bases_present) != 2:
         sys.stderr.write("Error, more than 2 different bases in column %d\n" % i)
@@ -96,10 +92,13 @@ for i in range(number_of_genotypes):
             sorted(bases_present)[1]: "2"
             }
     for genotype in all_genotypes:
-        first = genotype.alleles[0]
-        second = genotype.alleles[1]
-        genotype.alleles[0] = base_to_number[first]
-        genotype.alleles[1] = base_to_number[second]
+        first = genotype[0]
+        second = genotype[2]
+        new_first = base_to_number[first]
+        new_second = base_to_number[second]
+        genotype = new_first + " " + new_second
+
+sys.stderr.write("%d invalid genotypes were corrected\n" % genotypes_corrected)
 
 # Print stuff
 sys.stderr.write("Writing results...\n")
