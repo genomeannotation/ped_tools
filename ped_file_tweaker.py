@@ -66,73 +66,22 @@ def read_ped(filename):
     return families, number_of_genotypes
 
 def main():
-    families, number_of_genotypes = read_ped(sys.argv[1])
     # Inspect each column and validate genotypes
     # Then modify genotypes to "1 1" style entries
+    families, number_of_genotypes = read_ped(sys.argv[1])
     sys.stderr.write("Converting genotypes...\n")
     genotypes_corrected = 0
     for i in range(number_of_genotypes):
         for family in families:
-            # Get all entries from this column
-            all_genotypes = []
-            sys.stderr.write("Validating alleles for family %s, column %d\n" % 
+            # Validate genotypes
+            sys.stderr.write("Validating genotypes for family %s, column %d\n" % 
                     (family.mom.family_id(), i))
             genotypes_corrected += family.validate_genotypes(i)
-            all_genotypes.append(family.mom.genotypes[i])
-            all_genotypes.append(family.dad.genotypes[i])
-            for child in family.children:
-                all_genotypes.append(child.genotypes[i])
-            # Figure out what bases are present
-            bases_present = set()
-            for genotype in [family.mom.genotypes[i], family.dad.genotypes[i]]:
-                for base in "ACGT":
-                    if base in genotype:
-                        bases_present.add(base)
-            if len(bases_present) > 2:
-                sys.stderr.write("Error, more than 2 different bases in column %d\n" % i)
-                sys.exit()
-            # Figure out how to map bases to numbers
-            base_to_number = {
-                    "0": "0",
-                    }
-            if len(bases_present) == 1:
-                base_to_number[sorted(bases_present)[0]] = "1"
-            if len(bases_present) == 2:
-                base_to_number[sorted(bases_present)[1]] = "2"
-            # Convert mom genotype
-            if family.mom.genotypes[i][0] in base_to_number:
-                new_mom_genotype = base_to_number[family.mom.genotypes[i][0]] + " "
-            else:
-                new_mom_genotype = "0 "
-            if family.mom.genotypes[i][2] in base_to_number:
-                new_mom_genotype += base_to_number[family.mom.genotypes[i][2]]
-            else:
-                new_mom_genotype += "0"
-            family.mom.genotypes[i] = new_mom_genotype
-            # Convert dad genotype
-            if family.dad.genotypes[i][0] in base_to_number:
-                new_dad_genotype = base_to_number[family.dad.genotypes[i][0]] + " "
-            else:
-                new_dad_genotype = "0 "
-            if family.dad.genotypes[i][2] in base_to_number:
-                new_dad_genotype += base_to_number[family.dad.genotypes[i][2]]
-            else:
-                new_dad_genotype += "0"
-            family.dad.genotypes[i] = new_dad_genotype
-            # Convert children's genotypes
-            for child in family.children:
-                if child.genotypes[i][0] in base_to_number:
-                    new_child_genotype = base_to_number[child.genotypes[i][0]] + " "
-                else:
-                    new_child_genotype = "0 "
-                if child.genotypes[i][2] in base_to_number:
-                    new_child_genotype += base_to_number[child.genotypes[i][2]]
-                else:
-                    new_child_genotype += "0"
-                child.genotypes[i] = new_child_genotype
-                
+            sys.stderr.write("...corrected %d genotypes.\n" % genotypes_corrected)
+            # Convert letters to numbers
+            family.letter_to_numbers(i)
 
-    sys.stderr.write("%d invalid genotypes were corrected\n" % genotypes_corrected)
+    sys.stderr.write("%d invalid genotypes were corrected in total.\n" % genotypes_corrected)
 
     # Print stuff
     sys.stderr.write("Writing results...\n")
@@ -141,6 +90,8 @@ def main():
         print(family.dad.to_tsv())
         for child in family.children:
             print(child.to_tsv())
+
+##########################
 
 if __name__ == "__main__":
     main()

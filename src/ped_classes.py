@@ -47,6 +47,43 @@ def valid_genotype(mom_genotype, dad_genotype, child_genotype):
             return True
     return False
 
+def get_all_genotypes_with(allele):
+    """Return a list of all genotypes containing a given allele"""
+    result = []
+    for base in "ACGT":
+        result.append(allele + " " + base)
+    return result
+
+def get_valid_combos(mom, dad):
+    """Return set of valid genotypes given mom and dad with known values"""
+    result = set()
+    for mom_allele in [mom[0], mom[2]]:
+        for dad_allele in [dad[0], dad[2]]:
+            alleles = sorted( [mom_allele, dad_allele] )
+            result.add( alleles[0] + " " + alleles[1] )
+    return result
+
+def get_valid_genotypes(mom, dad):
+    valid_genotypes = set()
+    if mom == "0 0":
+        dad1 = dad[0]
+        dad2 = dad[2]
+        for base in "ACGT":
+            valid_genotypes |= set(get_all_genotypes_with(dad1))
+            valid_genotypes |= set(get_all_genotypes_with(dad2))
+    elif dad == "0 0":
+        mom1 = mom[0]
+        mom2 = mom[2]
+        for base in "ACGT":
+            valid_genotypes |= set(get_all_genotypes_with(mom1))
+            valid_genotypes |= set(get_all_genotypes_with(mom2))
+    else:
+        valid_genotypes |= set(get_valid_combos(mom, dad))
+    return valid_genotypes
+
+
+
+
 class Family:
     """Stores a mom PedRow, a dad PedRow, and child PedRows"""
     def __init__(self):
@@ -55,13 +92,76 @@ class Family:
         self.children = []
 
     def validate_genotypes(self, column):
+        """Change invalid child genotypes to '0 0'"""
         genotypes_corrected = 0
         mom_genotype = self.mom.genotypes[column]
         dad_genotype = self.dad.genotypes[column]
-        child_genotypes = [c.genotypes[column] for c in self.children]
-        for child_genotype in child_genotypes:
-            if not valid_genotype(mom_genotype, dad_genotype, child_genotype):
-                genotypes_corrected += 1
-                child_genotype = "0 0"
+        if mom_genotype == "0 0" and dad_genotype == "0 0":
+            # If we know nothing about the parents, leave kids alone
+            return genotypes_corrected
+        else:
+            # One or both parents' genotypes are known
+            valid_genotypes = get_valid_genotypes(mom_genotype, dad_genotype)
+            for child in self.children:
+                if child.genotypes[column] not in valid_genotypes:
+                    child.genotypes[column] = "0 0"
+                    genotypes_corrected += 1
         return genotypes_corrected
+
+    def letter_to_numbers(self, column):
+        """Change genotypes like 'A G' to '1 2'"""
+        # TODO omg this method needs refactored like bad
+        # Figure out what bases are present
+        bases_present = set()
+        all_genotypes = []
+        all_genotypes.append(self.mom.genotypes[column])
+        all_genotypes.append(self.dad.genotypes[column])
+        for child in self.children:
+            all_genotypes.append(child.genotypes[column])
+        for genotype in all_genotypes:
+            for base in "ACGT":
+                if base in genotype:
+                    bases_present.add(base)
+        if len(bases_present) > 2:
+            sys.stderr.write("Error, more than 2 different bases in column %d\n" % i)
+            sys.exit()
+        # Figure out how to map bases to numbers
+        base_to_number = {
+                "0": "0",
+                }
+        if len(bases_present) >= 1:
+            base_to_number[sorted(bases_present)[0]] = "1"
+        if len(bases_present) == 2:
+            base_to_number[sorted(bases_present)[1]] = "2"
+        # Convert mom genotype
+        if self.mom.genotypes[column][0] in base_to_number:
+            new_mom_genotype = base_to_number[self.mom.genotypes[column][0]] + " "
+        else:
+            new_mom_genotype = "0 "
+        if self.mom.genotypes[column][2] in base_to_number:
+            new_mom_genotype += base_to_number[self.mom.genotypes[column][2]]
+        else:
+            new_mom_genotype += "0"
+        self.mom.genotypes[column] = new_mom_genotype
+        # Convert dad genotype
+        if self.dad.genotypes[column][0] in base_to_number:
+            new_dad_genotype = base_to_number[self.dad.genotypes[column][0]] + " "
+        else:
+            new_dad_genotype = "0 "
+        if self.dad.genotypes[column][2] in base_to_number:
+            new_dad_genotype += base_to_number[self.dad.genotypes[column][2]]
+        else:
+            new_dad_genotype += "0"
+        self.dad.genotypes[column] = new_dad_genotype
+        # Convert children's genotypes
+        for child in self.children:
+            if child.genotypes[column][0] in base_to_number:
+                new_child_genotype = base_to_number[child.genotypes[column][0]] + " "
+            else:
+                new_child_genotype = "0 "
+            if child.genotypes[column][2] in base_to_number:
+                new_child_genotype += base_to_number[child.genotypes[column][2]]
+            else:
+                new_child_genotype += "0"
+            child.genotypes[column] = new_child_genotype
 
