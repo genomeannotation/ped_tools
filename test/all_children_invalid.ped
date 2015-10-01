@@ -1,0 +1,9 @@
+# Stacks v1.35;  PLINK v1.07; September 24, 2015
+6	BF_6_6	0	0	1	1	A	A
+6	BM_6_6	0	0	2	1	C	C
+6	BF_6_6_1	BF_6_6	BM_6_6	1	1	0	0
+6	BF_6_6_15	BF_6_6	BM_6_6	1	1	A	G
+6	BF_6_6_17	BF_6_6	BM_6_6	1	1	C	C
+6	BF_6_6_18	BF_6_6	BM_6_6	1	1	A	A
+6	BF_6_6_19	BF_6_6	BM_6_6	1	1	A	G
+6	BF_6_6_2	BF_6_6	BM_6_6	1	1	G	G

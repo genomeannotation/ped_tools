@@ -123,7 +123,8 @@ class Family:
                 if base in genotype:
                     bases_present.add(base)
         if len(bases_present) > 2:
-            sys.stderr.write("Error, more than 2 different bases in column %d\n" % i)
+            import sys
+            sys.stderr.write("Error, more than 2 different bases in column %d\n" % column)
             sys.exit()
         # Figure out how to map bases to numbers
         base_to_number = {
